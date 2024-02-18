@@ -26,6 +26,7 @@ func main() {
 	updateCmd := flag.NewFlagSet("update", flag.ExitOnError)
 	delCmd := flag.NewFlagSet("delete", flag.ExitOnError)
 	completeCmd := flag.NewFlagSet("complete", flag.ExitOnError)
+	priorityCmd := flag.NewFlagSet("priority", flag.ExitOnError)
 
 	var todos []Todo
 
@@ -161,6 +162,39 @@ func main() {
 		fmt.Printf("\nTask Completed!\n\n")
 		listTodos(&todos)
 
+	case "priority":
+		priorityCmd.Parse(os.Args[2:])
+		idx, err := strconv.Atoi(priorityCmd.Args()[0])
+
+		if err != nil {
+			fmt.Printf("Unable to parse index parameter: %s\n", err)
+			os.Exit(1)
+		}
+
+		priority, err := strconv.Atoi(priorityCmd.Args()[1])
+
+		if err != nil {
+			fmt.Printf("Unable to parse priority paramter: %s\n", err)
+			os.Exit(1)
+		}
+
+		err = setPriority(&todos, idx, priority)
+
+		if err != nil {
+			fmt.Printf("Error while setting the priority (value: %v) of the todo at index: %v. Error: %s\n", priority, idx, err)
+			os.Exit(1)
+		}
+
+		err = save(&todos, appPath)
+
+		if err != nil {
+			fmt.Printf("There was an error saving the file: %s\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Task Priority Set!")
+		listTodos(&todos)
+
 	default:
 		fmt.Println("expected one of the following 'add', 'list', 'delete', 'update', 'complete'")
 		os.Exit(1)
@@ -182,7 +216,7 @@ func addTodo(task string) Todo {
 }
 
 func listTodos(todos *[]Todo) {
-	fmt.Println("ID\tStatus\t\tDate Added\tTask")
+	fmt.Println("ID\tStatus\t\tDate Added\tPriority\tTask")
 	for i, todo := range *todos {
 		var status string
 		if todo.Completed {
@@ -190,7 +224,7 @@ func listTodos(todos *[]Todo) {
 		} else {
 			status = "Incomplete"
 		}
-		fmt.Printf("%v\t%s\t%s\t%s\n", i+1, status, todo.DateAdded, todo.Task)
+		fmt.Printf("%v\t%s\t%s\t%v\t\t%s\n", i+1, status, todo.DateAdded, todo.Priority, todo.Task)
 	}
 }
 
@@ -226,6 +260,18 @@ func completeTodo(todos *[]Todo, idx int) error {
 	}
 
 	(*todos)[ai].Completed = true
+
+	return nil
+}
+
+func setPriority(todos *[]Todo, idx int, priority int) error {
+	ai := idx - 1
+
+	if ai < 0 || ai >= len(*todos) {
+		return fmt.Errorf("The given index is out of bounds.")
+	}
+
+	(*todos)[ai].Priority = priority
 
 	return nil
 }
