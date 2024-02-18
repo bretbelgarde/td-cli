@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -21,9 +22,7 @@ type Todo struct {
 func main() {
 
 	addCmd := flag.NewFlagSet("add", flag.ExitOnError)
-
 	listCmd := flag.NewFlagSet("list", flag.ExitOnError)
-
 	updateCmd := flag.NewFlagSet("update", flag.ExitOnError)
 	delCmd := flag.NewFlagSet("delete", flag.ExitOnError)
 	completeCmd := flag.NewFlagSet("complete", flag.ExitOnError)
@@ -35,10 +34,31 @@ func main() {
 		os.Exit(1)
 	}
 
-	err := load(&todos)
-
+	userDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Printf("There was an error: %s", err)
+		fmt.Println("Error: ", err)
+	}
+
+	appDir := userDir + "/td-cli"
+	appData := "todo.json"
+	appPath := appDir + "/" + appData
+
+	if !pathExists(appDir) {
+		if err = os.Mkdir(appDir, 0755); err != nil {
+			fmt.Println("Directiory creation error: ", err)
+			os.Exit(1)
+		}
+	}
+
+	if !pathExists(appPath) {
+		// If the file doesn't exist save an empty todo file
+		if err = save(&todos, appPath); err != nil {
+			fmt.Println("File creation error: ", err)
+		}
+	}
+
+	if err = load(&todos, appPath); err != nil {
+		fmt.Println("There was an error loading the file: ", err)
 		os.Exit(1)
 	}
 
@@ -47,10 +67,10 @@ func main() {
 		addCmd.Parse(os.Args[2:])
 		task := strings.Join(addCmd.Args(), "")
 		todos = append(todos, addTodo(task))
-		err := save(&todos)
+		err := save(&todos, appPath)
 
 		if err != nil {
-			fmt.Printf("There was an error: %s\n", err)
+			fmt.Printf("There was an error saving the file: %s\n", err)
 			os.Exit(1)
 		}
 
@@ -79,10 +99,10 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = save(&todos)
+		err = save(&todos, appPath)
 
 		if err != nil {
-			fmt.Printf("There was an error: %s\n", err)
+			fmt.Printf("There was an error saving the file: %s\n", err)
 			os.Exit(1)
 		}
 
@@ -105,10 +125,10 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = save(&todos)
+		err = save(&todos, appPath)
 
 		if err != nil {
-			fmt.Printf("There was an error: %s\n", err)
+			fmt.Printf("There was an error saving the file: %s\n", err)
 			os.Exit(1)
 		}
 
@@ -131,10 +151,10 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = save(&todos)
+		err = save(&todos, appPath)
 
 		if err != nil {
-			fmt.Printf("There was an error: %s\n", err)
+			fmt.Printf("There was an error saving the file: %s\n", err)
 			os.Exit(1)
 		}
 
@@ -210,14 +230,14 @@ func completeTodo(todos *[]Todo, idx int) error {
 	return nil
 }
 
-func save(todos *[]Todo) error {
+func save(todos *[]Todo, appPath string) error {
 	todoJson, err := json.Marshal(todos)
 
 	if err != nil {
 		return err
 	}
 
-	err = os.WriteFile("todo.json", todoJson, 0644)
+	err = os.WriteFile(appPath, todoJson, 0644)
 
 	if err != nil {
 		return err
@@ -226,8 +246,8 @@ func save(todos *[]Todo) error {
 	return nil
 }
 
-func load(todos *[]Todo) error {
-	file, err := os.ReadFile("todo.json")
+func load(todos *[]Todo, filePath string) error {
+	file, err := os.ReadFile(filePath)
 
 	if err != nil {
 		return err
@@ -240,4 +260,12 @@ func load(todos *[]Todo) error {
 	}
 
 	return nil
+}
+
+func pathExists(path string) bool {
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+
+	return true
 }
