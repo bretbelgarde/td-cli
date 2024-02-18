@@ -54,13 +54,13 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println("\nTask Added!\n")
-		listTodos(todos)
+		fmt.Printf("\nTask Added!\n\n")
+		listTodos(&todos)
 
 	case "list":
 		listCmd.Parse(os.Args[2:])
-		fmt.Println("\nTodo List:\n")
-		listTodos(todos)
+		fmt.Printf("\nTodo List:\n\n")
+		listTodos(&todos)
 
 	case "update":
 		updateCmd.Parse(os.Args[2:])
@@ -86,8 +86,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println("\nTask Updated!\n")
-		listTodos(todos)
+		fmt.Printf("\nTask Updated!\n\n")
+		listTodos(&todos)
 
 	case "delete":
 		delCmd.Parse(os.Args[2:])
@@ -112,8 +112,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println("\nTask Deleted!\n")
-		listTodos(todos)
+		fmt.Printf("\nTask Deleted!\n\n")
+		listTodos(&todos)
 
 	case "complete":
 		completeCmd.Parse(os.Args[2:])
@@ -138,8 +138,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println("\nTask Completed!\n")
-		listTodos(todos)
+		fmt.Printf("\nTask Completed!\n\n")
+		listTodos(&todos)
 
 	default:
 		fmt.Println("expected one of the following 'add', 'list', 'delete', 'update', 'complete'")
@@ -161,9 +161,9 @@ func addTodo(task string) Todo {
 	return t
 }
 
-func listTodos(todos []Todo) {
+func listTodos(todos *[]Todo) {
 	fmt.Println("ID\tStatus\t\tDate Added\tTask")
-	for i, todo := range todos {
+	for i, todo := range *todos {
 		var status string
 		if todo.Completed {
 			status = "Completed"
