@@ -300,7 +300,11 @@ func updateTodo(todos *Todos, idx int, task string) error {
 		return fmt.Errorf("The given index is out of bounds.")
 	}
 
-	(*todos)[ai].Task = task
+	for _, todo := range *todos {
+		if todo.Id == (*todos)[ai].Id {
+			(*todos)[ai].Task = task
+		}
+	}
 
 	return nil
 }
@@ -308,11 +312,19 @@ func updateTodo(todos *Todos, idx int, task string) error {
 func deleteTodo(todos *Todos, idx int) error {
 	ai := idx - 1
 
+	var tmpTodos Todos
+
 	if ai < 0 || ai >= len(*todos) {
 		return fmt.Errorf("The given index is out of bounds.")
 	}
 
-	(*todos) = append((*todos)[:ai], (*todos)[ai+1:]...)
+	for _, todo := range *todos {
+		if todo.Id != (*todos)[ai].Id {
+			tmpTodos = append(tmpTodos, todo)
+		}
+	}
+
+	(*todos) = tmpTodos
 
 	return nil
 }
@@ -324,7 +336,11 @@ func completeTodo(todos *Todos, idx int) error {
 		return fmt.Errorf("The given index is out of bounds.")
 	}
 
-	(*todos)[ai].Completed = true
+	for _, todo := range *todos {
+		if todo.Id == (*todos)[ai].Id {
+			(*todos)[ai].Completed = true
+		}
+	}
 
 	return nil
 }
@@ -336,7 +352,11 @@ func setPriority(todos *Todos, idx int, priority int) error {
 		return fmt.Errorf("The given index is out of bounds.")
 	}
 
-	(*todos)[ai].Priority = priority
+	for _, todo := range *todos {
+		if todo.Id == (*todos)[ai].Id {
+			(*todos)[ai].Priority = priority
+		}
+	}
 
 	return nil
 }
