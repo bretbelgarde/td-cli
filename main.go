@@ -59,14 +59,20 @@ func main() {
 
 	addCmd := flag.NewFlagSet("add", flag.ExitOnError)
 	addSort := addCmd.String("sort", "id", "Sort list by <column name>")
+
 	listCmd := flag.NewFlagSet("list", flag.ExitOnError)
 	listSort := listCmd.String("sort", "id", "Sort list by <column name>")
+	listComplete := listCmd.Bool("completed", false, "toggle display of Completed")
+
 	updateCmd := flag.NewFlagSet("update", flag.ExitOnError)
 	updateSort := updateCmd.String("sort", "id", "Sort list by <column name>")
+
 	delCmd := flag.NewFlagSet("delete", flag.ExitOnError)
 	delSort := delCmd.String("sort", "id", "Sort list by <column name>")
+
 	completeCmd := flag.NewFlagSet("complete", flag.ExitOnError)
 	completeSort := completeCmd.String("sort", "id", "Sort list by <column name>")
+
 	priorityCmd := flag.NewFlagSet("priority", flag.ExitOnError)
 	prioritySort := priorityCmd.String("sort", "id", "Sort list by <column name>")
 
@@ -119,14 +125,14 @@ func main() {
 		}
 
 		fmt.Printf("\nTask Added!\n\n")
-		if err := sortList(&todos, *addSort); err != nil {
+		if err := sortList(&todos, *addSort, false); err != nil {
 			fmt.Printf("Sorting Error: %s\n", err)
 		}
 
 	case "list":
 		listCmd.Parse(os.Args[2:])
 		fmt.Printf("\nTodo List:\n\n")
-		if err := sortList(&todos, *listSort); err != nil {
+		if err := sortList(&todos, *listSort, *listComplete); err != nil {
 			fmt.Printf("Sorting Error: %s\n", err)
 		}
 
@@ -156,7 +162,7 @@ func main() {
 
 		fmt.Printf("\nTask Updated!\n\n")
 
-		if err := sortList(&todos, *updateSort); err != nil {
+		if err := sortList(&todos, *updateSort, false); err != nil {
 			fmt.Printf("Sorting Error: %s\n", err)
 		}
 
@@ -185,7 +191,7 @@ func main() {
 
 		fmt.Printf("\nTask Deleted!\n\n")
 
-		if err := sortList(&todos, *delSort); err != nil {
+		if err := sortList(&todos, *delSort, false); err != nil {
 			fmt.Printf("Sorting Error: %s\n", err)
 		}
 
@@ -213,7 +219,7 @@ func main() {
 		}
 
 		fmt.Printf("\nTask Completed!\n\n")
-		if err := sortList(&todos, *completeSort); err != nil {
+		if err := sortList(&todos, *completeSort, true); err != nil {
 			fmt.Printf("Sorting Error: %s\n", err)
 		}
 
@@ -248,7 +254,7 @@ func main() {
 		}
 
 		fmt.Printf("\nTask Priority Set!\n")
-		if err := sortList(&todos, *prioritySort); err != nil {
+		if err := sortList(&todos, *prioritySort, false); err != nil {
 			fmt.Printf("Sorting Error: %s\n", err)
 		}
 
@@ -272,7 +278,7 @@ func addTodo(id int, task string) Todo {
 	return t
 }
 
-func listTodos(todos *Todos, sortBy TodoSort) {
+func listTodos(todos *Todos, sortBy TodoSort, showCompleted bool) {
 	switch sortBy {
 	case SortPriority:
 		sort.Stable(sort.Reverse(TodosByPriority(*todos)))
@@ -280,11 +286,9 @@ func listTodos(todos *Todos, sortBy TodoSort) {
 		sort.Stable(*todos)
 	}
 
-	var showComleted = false
-
 	fmt.Printf("Index\tStatus\t\tDate Added\tPriority\tTask\n")
 	for idx, todo := range *todos {
-		if !showComleted && todo.Completed == "Completed" {
+		if !showCompleted && todo.Completed == "Completed" {
 			continue
 		}
 		fmt.Printf("%v\t%s\t%s\t%v\t\t%s\n", idx+1, todo.Completed, todo.DateAdded, todo.Priority, todo.Task)
@@ -399,11 +403,11 @@ func pathExists(path string) bool {
 	return true
 }
 
-func sortList(todos *Todos, sortParam string) error {
+func sortList(todos *Todos, sortParam string, showCompleted bool) error {
 	if sortParam == "id" {
-		listTodos(todos, SortId)
+		listTodos(todos, SortId, showCompleted)
 	} else if sortParam == "priority" {
-		listTodos(todos, SortPriority)
+		listTodos(todos, SortPriority, showCompleted)
 	} else {
 		return fmt.Errorf("Invalid Sort Column")
 	}
