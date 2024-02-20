@@ -280,8 +280,13 @@ func listTodos(todos *Todos, sortBy TodoSort) {
 		sort.Stable(*todos)
 	}
 
+	var showComleted = false
+
 	fmt.Printf("Index\tStatus\t\tDate Added\tPriority\tTask\n")
 	for idx, todo := range *todos {
+		if !showComleted && todo.Completed == "Completed" {
+			continue
+		}
 		fmt.Printf("%v\t%s\t%s\t%v\t\t%s\n", idx+1, todo.Completed, todo.DateAdded, todo.Priority, todo.Task)
 	}
 }
