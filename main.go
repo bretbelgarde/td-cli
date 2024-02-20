@@ -16,7 +16,7 @@ type Todo struct {
 	Id        int    `json:"id"`
 	Task      string `json:"task"`
 	DateAdded string `json:"date_added"`
-	Completed bool   `json:"status"`
+	Completed string `json:"status"`
 	Priority  int    `json:"priority"`
 }
 
@@ -265,7 +265,7 @@ func addTodo(id int, task string) Todo {
 		Id:        id,
 		Task:      task,
 		DateAdded: ct.Format("2006-01-02"),
-		Completed: false,
+		Completed: "Incomplete",
 		Priority:  0,
 	}
 
@@ -282,14 +282,7 @@ func listTodos(todos *Todos, sortBy TodoSort) {
 
 	fmt.Printf("Index\tStatus\t\tDate Added\tPriority\tTask\n")
 	for idx, todo := range *todos {
-		var status string
-		if todo.Completed {
-			status = "Completed"
-		} else {
-			status = "Incomplete"
-		}
-
-		fmt.Printf("%v\t%s\t%s\t%v\t\t%s\n", idx+1, status, todo.DateAdded, todo.Priority, todo.Task)
+		fmt.Printf("%v\t%s\t%s\t%v\t\t%s\n", idx+1, todo.Completed, todo.DateAdded, todo.Priority, todo.Task)
 	}
 }
 
@@ -338,7 +331,7 @@ func completeTodo(todos *Todos, idx int) error {
 
 	for _, todo := range *todos {
 		if todo.Id == (*todos)[ai].Id {
-			(*todos)[ai].Completed = true
+			(*todos)[ai].Completed = "Completed"
 		}
 	}
 
