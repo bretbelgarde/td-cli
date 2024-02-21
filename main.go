@@ -6,54 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
-	"time"
+
+	td "bretbelgarde.com/td-cli/model/todos"
 )
-
-type Todo struct {
-	Id        int    `json:"id"`
-	Task      string `json:"task"`
-	DateAdded string `json:"date_added"`
-	Completed string `json:"status"`
-	Priority  int    `json:"priority"`
-}
-
-type TodoSort byte
-
-const (
-	SortId TodoSort = iota
-	SortPriority
-)
-
-type Todos []Todo
-
-func (t Todos) Len() int {
-	return len(t)
-}
-
-func (t Todos) Swap(i, j int) {
-	t[i], t[j] = t[j], t[i]
-}
-
-func (t Todos) Less(i, j int) bool {
-	return t[i].Id < t[j].Id
-}
-
-type TodosByPriority Todos
-
-func (t TodosByPriority) Len() int {
-	return len(t)
-}
-
-func (t TodosByPriority) Swap(i, j int) {
-	t[i], t[j] = t[j], t[i]
-}
-
-func (t TodosByPriority) Less(i, j int) bool {
-	return t[i].Priority < t[j].Priority
-}
 
 func main() {
 
@@ -76,7 +33,7 @@ func main() {
 	priorityCmd := flag.NewFlagSet("priority", flag.ExitOnError)
 	prioritySort := priorityCmd.String("sort", "id", "Sort list by <column name>")
 
-	var todos Todos
+	var todos td.Todos
 
 	if len(os.Args) < 2 {
 		fmt.Println("Expected one of the following: 'add', 'list', 'delete', 'update', or 'complete'")
@@ -116,7 +73,7 @@ func main() {
 		addCmd.Parse(os.Args[2:])
 		id := todos[todos.Len()-1].Id + 1
 		task := strings.Join(addCmd.Args(), " ")
-		todos = append(todos, addTodo(id, task))
+		todos = append(todos, todos.Add(id, task))
 		err := save(&todos, appPath)
 
 		if err != nil {
@@ -125,14 +82,14 @@ func main() {
 		}
 
 		fmt.Printf("\nTask Added!\n\n")
-		if err := sortList(&todos, *addSort, false); err != nil {
+		if err := todos.SortList(*addSort, false); err != nil {
 			fmt.Printf("Sorting Error: %s\n", err)
 		}
 
 	case "list":
 		listCmd.Parse(os.Args[2:])
 		fmt.Printf("\nTodo List:\n\n")
-		if err := sortList(&todos, *listSort, *listComplete); err != nil {
+		if err := todos.SortList(*listSort, *listComplete); err != nil {
 			fmt.Printf("Sorting Error: %s\n", err)
 		}
 
@@ -146,7 +103,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = updateTodo(&todos, arg, task)
+		err = todos.Update(arg, task)
 
 		if err != nil {
 			fmt.Printf("Error while updating todo at index: %v. Error: %s\n", arg, err)
@@ -162,7 +119,7 @@ func main() {
 
 		fmt.Printf("\nTask Updated!\n\n")
 
-		if err := sortList(&todos, *updateSort, false); err != nil {
+		if err := todos.SortList(*updateSort, false); err != nil {
 			fmt.Printf("Sorting Error: %s\n", err)
 		}
 
@@ -175,7 +132,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = deleteTodo(&todos, arg)
+		err = todos.Delete(arg)
 
 		if err != nil {
 			fmt.Printf("Error while deleteing todo at index: %v. Error: %s\n", arg, err)
@@ -191,7 +148,7 @@ func main() {
 
 		fmt.Printf("\nTask Deleted!\n\n")
 
-		if err := sortList(&todos, *delSort, false); err != nil {
+		if err := todos.SortList(*delSort, false); err != nil {
 			fmt.Printf("Sorting Error: %s\n", err)
 		}
 
@@ -204,7 +161,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = completeTodo(&todos, arg)
+		err = todos.Complete(arg)
 
 		if err != nil {
 			fmt.Printf("Error while completing todo at index: %v. Error: %s\n", arg, err)
@@ -219,7 +176,7 @@ func main() {
 		}
 
 		fmt.Printf("\nTask Completed!\n\n")
-		if err := sortList(&todos, *completeSort, true); err != nil {
+		if err := todos.SortList(*completeSort, true); err != nil {
 			fmt.Printf("Sorting Error: %s\n", err)
 		}
 
@@ -239,7 +196,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = setPriority(&todos, idx, priority)
+		err = todos.SetPriority(idx, priority)
 
 		if err != nil {
 			fmt.Printf("Error while setting the priority (value: %v) of the todo at index: %v. Error: %s\n", priority, idx, err)
@@ -254,7 +211,7 @@ func main() {
 		}
 
 		fmt.Printf("\nTask Priority Set!\n")
-		if err := sortList(&todos, *prioritySort, false); err != nil {
+		if err := todos.SortList(*prioritySort, false); err != nil {
 			fmt.Printf("Sorting Error: %s\n", err)
 		}
 
@@ -265,105 +222,7 @@ func main() {
 
 }
 
-func addTodo(id int, task string) Todo {
-	ct := time.Now()
-	t := Todo{
-		Id:        id,
-		Task:      task,
-		DateAdded: ct.Format("2006-01-02"),
-		Completed: "Incomplete",
-		Priority:  0,
-	}
-
-	return t
-}
-
-func listTodos(todos *Todos, sortBy TodoSort, showCompleted bool) {
-	switch sortBy {
-	case SortPriority:
-		sort.Stable(sort.Reverse(TodosByPriority(*todos)))
-	default:
-		sort.Stable(*todos)
-	}
-
-	fmt.Printf("Index\tStatus\t\tDate Added\tPriority\tTask\n")
-	for idx, todo := range *todos {
-		if !showCompleted && todo.Completed == "Completed" {
-			continue
-		}
-		fmt.Printf("%v\t%s\t%s\t%v\t\t%s\n", idx+1, todo.Completed, todo.DateAdded, todo.Priority, todo.Task)
-	}
-}
-
-func updateTodo(todos *Todos, idx int, task string) error {
-	ai := idx - 1
-
-	if ai < 0 || ai >= len(*todos) {
-		return fmt.Errorf("The given index is out of bounds.")
-	}
-
-	for _, todo := range *todos {
-		if todo.Id == (*todos)[ai].Id {
-			(*todos)[ai].Task = task
-		}
-	}
-
-	return nil
-}
-
-func deleteTodo(todos *Todos, idx int) error {
-	ai := idx - 1
-
-	var tmpTodos Todos
-
-	if ai < 0 || ai >= len(*todos) {
-		return fmt.Errorf("The given index is out of bounds.")
-	}
-
-	for _, todo := range *todos {
-		if todo.Id != (*todos)[ai].Id {
-			tmpTodos = append(tmpTodos, todo)
-		}
-	}
-
-	(*todos) = tmpTodos
-
-	return nil
-}
-
-func completeTodo(todos *Todos, idx int) error {
-	ai := idx - 1
-
-	if ai < 0 || ai >= len(*todos) {
-		return fmt.Errorf("The given index is out of bounds.")
-	}
-
-	for _, todo := range *todos {
-		if todo.Id == (*todos)[ai].Id {
-			(*todos)[ai].Completed = "Completed"
-		}
-	}
-
-	return nil
-}
-
-func setPriority(todos *Todos, idx int, priority int) error {
-	ai := idx - 1
-
-	if ai < 0 || ai >= len(*todos) {
-		return fmt.Errorf("The given index is out of bounds.")
-	}
-
-	for _, todo := range *todos {
-		if todo.Id == (*todos)[ai].Id {
-			(*todos)[ai].Priority = priority
-		}
-	}
-
-	return nil
-}
-
-func save(todos *Todos, appPath string) error {
+func save(todos *td.Todos, appPath string) error {
 	todoJson, err := json.Marshal(todos)
 
 	if err != nil {
@@ -379,7 +238,7 @@ func save(todos *Todos, appPath string) error {
 	return nil
 }
 
-func load(todos *Todos, filePath string) error {
+func load(todos *td.Todos, filePath string) error {
 	file, err := os.ReadFile(filePath)
 
 	if err != nil {
@@ -401,16 +260,4 @@ func pathExists(path string) bool {
 	}
 
 	return true
-}
-
-func sortList(todos *Todos, sortParam string, showCompleted bool) error {
-	if sortParam == "id" {
-		listTodos(todos, SortId, showCompleted)
-	} else if sortParam == "priority" {
-		listTodos(todos, SortPriority, showCompleted)
-	} else {
-		return fmt.Errorf("Invalid Sort Column")
-	}
-
-	return nil
 }
