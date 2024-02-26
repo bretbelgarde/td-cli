@@ -1,17 +1,27 @@
 package todos
 
 import (
-	"fmt"
-	"sort"
-	"time"
+	"database/sql"
+	"strconv"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
+const create string = `
+	CREATE TABLE IF NOT EXISTS todos (
+	id INTEGER NOT NULL PRIMARY KEY,
+	task TEXT NOT NULL,
+	date_added DATETIME NOT NULL,
+	completed INTEGER NOT NULL DEFAULT 0,
+	priority  INTEGER NOT NULL DEFAULT 0
+	);`
+
 type Todo struct {
-	Id        int    `json:"id"`
-	Task      string `json:"task"`
-	DateAdded string `json:"date_added"`
-	Completed string `json:"status"`
-	Priority  int    `json:"priority"`
+	Id        int
+	Task      string
+	DateAdded string
+	Completed int
+	Priority  int
 }
 
 type TodoSort byte
@@ -21,139 +31,126 @@ const (
 	SortPriority
 )
 
-type Todos []Todo
-
-func (t Todos) Len() int {
-	return len(t)
+type Todos struct {
+	db *sql.DB
 }
 
-func (t Todos) Swap(i, j int) {
-	t[i], t[j] = t[j], t[i]
-}
-
-func (t Todos) Less(i, j int) bool {
-	return t[i].Id < t[j].Id
-}
-
-type TodosByPriority Todos
-
-func (t TodosByPriority) Len() int {
-	return len(t)
-}
-
-func (t TodosByPriority) Swap(i, j int) {
-	t[i], t[j] = t[j], t[i]
-}
-
-func (t TodosByPriority) Less(i, j int) bool {
-	return t[i].Priority < t[j].Priority
-}
-
-func (td *Todos) Add(id int, task string) Todo {
-	ct := time.Now()
-	t := Todo{
-		Id:        id,
-		Task:      task,
-		DateAdded: ct.Format("2006-01-02"),
-		Completed: "Incomplete",
-		Priority:  0,
+func NewTodos(dbpath string) (*Todos, error) {
+	db, err := sql.Open("sqlite3", dbpath)
+	if err != nil {
+		return nil, err
 	}
 
-	return t
-}
-
-func (todos *Todos) List(sortBy TodoSort, showCompleted bool) {
-	switch sortBy {
-	case SortPriority:
-		sort.Stable(sort.Reverse(TodosByPriority(*todos)))
-	default:
-		sort.Stable(*todos)
+	if _, err := db.Exec(create); err != nil {
+		return nil, err
 	}
 
-	fmt.Printf("Index\tStatus\t\tDate Added\tPriority\tTask\n")
-	for idx, todo := range *todos {
-		if !showCompleted && todo.Completed == "Completed" {
-			continue
+	return &Todos{
+		db: db,
+	}, nil
+}
+
+func (td *Todos) Insert(todo Todo) (int, error) {
+	var id int64
+	res, err := td.db.Exec(
+		"INSERT INTO todos VALUES(null, ?, ?, ?, ?);",
+		todo.Task,
+		todo.DateAdded,
+		todo.Completed,
+		todo.Priority)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if id, err = res.LastInsertId(); err != nil {
+		return 0, err
+	}
+
+	return int(id), nil
+}
+
+func (td *Todos) Retrieve(id int) (Todo, error) {
+	row := td.db.QueryRow("SELECT * FROM todos WHERE id=?", id)
+
+	var err error
+	todo := Todo{}
+
+	err = row.Scan(&todo.Id, &todo.Task, &todo.DateAdded, &todo.Completed, &todo.Priority)
+	if err == sql.ErrNoRows {
+		return Todo{}, err
+	}
+	return todo, err
+}
+
+func (td *Todos) List(offset int) ([]Todo, error) {
+	rows, err := td.db.Query("SELECT * FROM todos WHERE ID > ? ORDER BY id DESC LIMIT 100", offset)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	todos := []Todo{}
+	for rows.Next() {
+		todo := Todo{}
+
+		if err = rows.Scan(&todo.Id, &todo.Task, &todo.DateAdded, &todo.Completed, &todo.Priority); err != nil {
+			return nil, err
 		}
-		fmt.Printf("%v\t%s\t%s\t%v\t\t%s\n", idx+1, todo.Completed, todo.DateAdded, todo.Priority, todo.Task)
+
+		todos = append(todos, todo)
 	}
+
+	return todos, nil
 }
 
-func (todos *Todos) Update(idx int, task string) error {
-	ai := idx - 1
+func (td *Todos) Update(id int64, field string, value string) (int, error) {
+	var ra int64
+	sql := "UPDATE todos SET " + field + "=? WHERE id=?;"
 
-	if ai < 0 || ai >= len(*todos) {
-		return fmt.Errorf("The given index is out of bounds.")
+	res, err := td.db.Exec(sql, value, id)
+
+	if err != nil {
+		return 0, err
 	}
 
-	for _, todo := range *todos {
-		if todo.Id == (*todos)[ai].Id {
-			(*todos)[ai].Task = task
-		}
+	if ra, err = res.RowsAffected(); err != nil {
+		return 0, err
+	}
+
+	return int(ra), err
+}
+
+func (td *Todos) Delete(id int64) (int, error) {
+	res, err := td.db.Exec("DELETE FROM todos WHERE id = ?", id)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if id, err = res.RowsAffected(); err != nil {
+		return 0, err
+	}
+
+	return int(id), nil
+}
+
+func (td *Todos) Complete(id int64) error {
+	_, err := td.Update(id, "completed", "1")
+
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func (todos *Todos) Delete(idx int) error {
-	ai := idx - 1
+func (td *Todos) SetPriority(id int64, priority int64) error {
+	_, err := td.Update(int64(id), "priority", strconv.FormatInt(priority, 10))
 
-	var tmpTodos Todos
-
-	if ai < 0 || ai >= len(*todos) {
-		return fmt.Errorf("The given index is out of bounds.")
-	}
-
-	for _, todo := range *todos {
-		if todo.Id != (*todos)[ai].Id {
-			tmpTodos = append(tmpTodos, todo)
-		}
-	}
-
-	(*todos) = tmpTodos
-
-	return nil
-}
-
-func (todos *Todos) Complete(idx int) error {
-	ai := idx - 1
-
-	if ai < 0 || ai >= len(*todos) {
-		return fmt.Errorf("The given index is out of bounds.")
-	}
-
-	for _, todo := range *todos {
-		if todo.Id == (*todos)[ai].Id {
-			(*todos)[ai].Completed = "Completed"
-		}
-	}
-
-	return nil
-}
-
-func (todos *Todos) SetPriority(idx int, priority int) error {
-	ai := idx - 1
-
-	if ai < 0 || ai >= len(*todos) {
-		return fmt.Errorf("The given index is out of bounds.")
-	}
-
-	for _, todo := range *todos {
-		if todo.Id == (*todos)[ai].Id {
-			(*todos)[ai].Priority = priority
-		}
-	}
-
-	return nil
-}
-
-func (todos *Todos) SortList(sortParam string, showCompleted bool) error {
-	if sortParam == "id" {
-		todos.List(SortId, showCompleted)
-	} else if sortParam == "priority" {
-		todos.List(SortPriority, showCompleted)
-	} else {
-		return fmt.Errorf("Invalid Sort Column")
+	if err != nil {
+		return err
 	}
 
 	return nil
