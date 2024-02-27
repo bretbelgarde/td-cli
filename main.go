@@ -89,7 +89,7 @@ func main() {
 		}
 
 		if len(todoList) < 1 {
-			fmt.Println("No Todos in DB")
+			fmt.Println("No todos in todo list")
 			os.Exit(0)
 		}
 
