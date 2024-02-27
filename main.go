@@ -67,6 +67,7 @@ func main() {
 		todo := td.Todo{
 			Task:      task,
 			DateAdded: time.Now().Format("2006-01-02"),
+			DateDue:   "0001-01-01T00:00:00Z",
 			Completed: 0,
 			Priority:  0,
 		}
@@ -96,13 +97,9 @@ func main() {
 
 	case "update":
 		updateCmd.Parse(os.Args[2:])
-		id, err := strconv.Atoi(updateCmd.Args()[0])
-		if err != nil {
-			fmt.Println("Index parse error: ", err)
-			os.Exit(1)
-		}
+		id := parseValue(updateCmd.Arg(0))
 
-		if _, err = tdb.Update(int64(id), "task", updateCmd.Args()[1]); err != nil {
+		if _, err = tdb.Update(id, "task", updateCmd.Args()[1]); err != nil {
 			fmt.Println("Error updating todo: ", err)
 			os.Exit(1)
 		}
@@ -111,14 +108,9 @@ func main() {
 
 	case "delete":
 		delCmd.Parse(os.Args[2:])
-		id, err := strconv.Atoi(delCmd.Args()[0])
+		id := parseValue(delCmd.Arg(0))
 
-		if err != nil {
-			fmt.Println("Index parse error: ", err)
-			os.Exit(1)
-		}
-
-		if _, err = tdb.Delete(int64(id)); err != nil {
+		if _, err = tdb.Delete(id); err != nil {
 			fmt.Println("Error deleting todo: ", err)
 		}
 
@@ -126,11 +118,7 @@ func main() {
 
 	case "complete":
 		completeCmd.Parse(os.Args[2:])
-		id, err := parseValue(completeCmd.Arg(0))
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+		id := parseValue(completeCmd.Arg(0))
 
 		if err = tdb.Complete(id); err != nil {
 			fmt.Println(err)
@@ -141,20 +129,10 @@ func main() {
 
 	case "priority":
 		priorityCmd.Parse(os.Args[2:])
+		id := parseValue(priorityCmd.Arg(0))
+		tp := parseValue(priorityCmd.Arg(1))
 
-		id, err := parseValue(priorityCmd.Arg(0))
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		pri, err := parseValue(priorityCmd.Arg(1))
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		if err := tdb.SetPriority(id, pri); err != nil {
+		if err := tdb.SetPriority(id, tp); err != nil {
 			fmt.Println(err)
 		}
 
@@ -167,19 +145,28 @@ func main() {
 }
 
 func formatOutput(todoList []td.Todo) {
+	fmt.Printf("ID\tDue\tPri\tTask\n")
 	for _, todo := range todoList {
-		fmt.Println(todo)
+		var dateString string
+		if todo.DateDue == "0001-01-01T00:00:00Z" {
+			dateString = "-"
+		} else {
+			dateString = todo.DateDue
+		}
+
+		fmt.Printf("%v\t%s\t%v\t%s\n", todo.Id, dateString, todo.Priority, todo.Task)
 	}
 }
 
-func parseValue(val string) (int64, error) {
+func parseValue(val string) int64 {
 	conv, err := strconv.Atoi(val)
 
 	if err != nil {
-		return 0, fmt.Errorf("Index parse error: %v", err)
+		fmt.Printf("Index parse error: %v\n", err)
+		os.Exit(1)
 	}
 
-	return int64(conv), nil
+	return int64(conv)
 }
 
 func pathExists(path string) bool {
