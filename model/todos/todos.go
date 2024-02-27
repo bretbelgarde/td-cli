@@ -12,22 +12,28 @@ const create string = `
 	id INTEGER NOT NULL PRIMARY KEY,
 	task TEXT NOT NULL,
 	date_added DATETIME NOT NULL,
+	date_due DATETIME,
+	date_completed DATETIME,
 	completed INTEGER NOT NULL DEFAULT 0,
 	priority  INTEGER NOT NULL DEFAULT 0
 	);`
 
 type Todo struct {
-	Id        int
-	Task      string
-	DateAdded string
-	Completed int
-	Priority  int
+	Id            int
+	Task          string
+	DateAdded     string
+	DateDue       string
+	DateCompleted string
+	Completed     int
+	Priority      int
 }
 
 type TodoSort byte
 
 const (
-	SortId TodoSort = iota
+	SortDefault TodoSort = iota
+	SortDueDate
+	SortDateCompleted
 	SortPriority
 )
 
@@ -53,11 +59,13 @@ func NewTodos(dbpath string) (*Todos, error) {
 func (td *Todos) Insert(todo Todo) (int, error) {
 	var id int64
 	res, err := td.db.Exec(
-		"INSERT INTO todos VALUES(null, ?, ?, ?, ?);",
-		todo.Task,
-		todo.DateAdded,
-		todo.Completed,
-		todo.Priority)
+		"INSERT INTO todos VALUES(null, ?, ?, ?, ?, ?, ?);",
+		&todo.Task,
+		&todo.DateAdded,
+		&todo.DateDue,
+		&todo.DateCompleted,
+		&todo.Completed,
+		&todo.Priority)
 
 	if err != nil {
 		return 0, err
@@ -76,15 +84,21 @@ func (td *Todos) Retrieve(id int) (Todo, error) {
 	var err error
 	todo := Todo{}
 
-	err = row.Scan(&todo.Id, &todo.Task, &todo.DateAdded, &todo.Completed, &todo.Priority)
-	if err == sql.ErrNoRows {
+	if err = row.Scan(
+		&todo.Id,
+		&todo.Task,
+		&todo.DateAdded,
+		&todo.DateDue,
+		&todo.DateCompleted,
+		&todo.Completed,
+		&todo.Priority); err == sql.ErrNoRows {
 		return Todo{}, err
 	}
 	return todo, err
 }
 
 func (td *Todos) List(offset int) ([]Todo, error) {
-	rows, err := td.db.Query("SELECT * FROM todos WHERE ID > ? ORDER BY id DESC LIMIT 100", offset)
+	rows, err := td.db.Query("SELECT * FROM todos WHERE ID > ? ORDER BY id ASC LIMIT 100", offset)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +109,14 @@ func (td *Todos) List(offset int) ([]Todo, error) {
 	for rows.Next() {
 		todo := Todo{}
 
-		if err = rows.Scan(&todo.Id, &todo.Task, &todo.DateAdded, &todo.Completed, &todo.Priority); err != nil {
+		if err = rows.Scan(
+			&todo.Id,
+			&todo.Task,
+			&todo.DateAdded,
+			&todo.DateDue,
+			&todo.DateCompleted,
+			&todo.Completed,
+			&todo.Priority); err != nil {
 			return nil, err
 		}
 
