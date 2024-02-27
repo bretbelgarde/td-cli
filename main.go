@@ -18,7 +18,7 @@ func main() {
 	//addSort := addCmd.String("sort", "id", "Sort list by <column name>")
 
 	listCmd := flag.NewFlagSet("list", flag.ExitOnError)
-	//listSort := listCmd.String("sort", "id", "Sort list by <column name>")
+	listSort := listCmd.String("sort", "id", "Sort list by <column name>")
 	//listComplete := listCmd.Bool("completed", false, "toggle display of Completed")
 
 	updateCmd := flag.NewFlagSet("update", flag.ExitOnError)
@@ -81,7 +81,18 @@ func main() {
 
 	case "list":
 		listCmd.Parse(os.Args[2:])
-		todoList, err := tdb.List(0)
+		var sortBy string
+
+		switch *listSort {
+		case "due":
+			sortBy = td.SortDueDate
+		case "priority":
+			sortBy = td.SortPriority
+		default:
+			sortBy = td.SortDefault
+		}
+
+		todoList, err := tdb.List(0, sortBy)
 
 		if err != nil {
 			fmt.Println("ERR: ", err)
@@ -99,7 +110,7 @@ func main() {
 		updateCmd.Parse(os.Args[2:])
 		id := parseValue(updateCmd.Arg(0))
 
-		if _, err = tdb.Update(id, "task", updateCmd.Args()[1]); err != nil {
+		if _, err = tdb.Update(id, "task", updateCmd.Arg(1)); err != nil {
 			fmt.Println("Error updating todo: ", err)
 			os.Exit(1)
 		}

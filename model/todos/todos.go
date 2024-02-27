@@ -28,13 +28,11 @@ type Todo struct {
 	Priority      int
 }
 
-type TodoSort byte
-
 const (
-	SortDefault TodoSort = iota
-	SortDueDate
-	SortDateCompleted
-	SortPriority
+	SortDefault       = "id ASC"
+	SortDueDate       = "date_due ASC"
+	SortDateCompleted = "date_completed DESC"
+	SortPriority      = "priority DESC"
 )
 
 type Todos struct {
@@ -97,8 +95,9 @@ func (td *Todos) Retrieve(id int) (Todo, error) {
 	return todo, err
 }
 
-func (td *Todos) List(offset int) ([]Todo, error) {
-	rows, err := td.db.Query("SELECT * FROM todos WHERE ID > ? ORDER BY id ASC LIMIT 100", offset)
+func (td *Todos) List(offset int, sortBy string) ([]Todo, error) {
+
+	rows, err := td.db.Query("SELECT * FROM todos WHERE ID > ? ORDER BY "+sortBy+" LIMIT 100", offset)
 	if err != nil {
 		return nil, err
 	}
