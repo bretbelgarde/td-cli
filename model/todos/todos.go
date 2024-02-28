@@ -3,6 +3,7 @@ package todos
 import (
 	"database/sql"
 	"strconv"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -22,15 +23,15 @@ type Todo struct {
 	Id            int
 	Task          string
 	DateAdded     string
-	DateDue       string
-	DateCompleted string
+	DateDue       sql.NullString
+	DateCompleted sql.NullString
 	Completed     int
 	Priority      int
 }
 
 const (
 	SortDefault       = "id ASC"
-	SortDueDate       = "date_due ASC"
+	SortDueDate       = "date_due DESC"
 	SortDateCompleted = "date_completed DESC"
 	SortPriority      = "priority DESC"
 )
@@ -167,9 +168,23 @@ func (td *Todos) Complete(id int64) error {
 }
 
 func (td *Todos) SetPriority(id int64, priority int64) error {
-	_, err := td.Update(int64(id), "priority", strconv.FormatInt(priority, 10))
+	_, err := td.Update(id, "priority", strconv.FormatInt(priority, 10))
 
 	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (td *Todos) SetDueDate(id int64, dueDate string) error {
+	date, err := time.Parse("01-02-2006", dueDate)
+
+	if err != nil {
+		return err
+	}
+
+	if _, err := td.Update(id, "date_due", date.Format(time.DateOnly)); err != nil {
 		return err
 	}
 

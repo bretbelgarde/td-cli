@@ -33,6 +33,8 @@ func main() {
 	priorityCmd := flag.NewFlagSet("priority", flag.ExitOnError)
 	// prioritySort := priorityCmd.String("sort", "id", "Sort list by <column name>")
 
+	dueCmd := flag.NewFlagSet("due", flag.ExitOnError)
+
 	if len(os.Args) < 2 {
 		fmt.Println("Expected one of the following: 'add', 'list', 'delete', 'update', or 'complete'")
 		os.Exit(1)
@@ -67,7 +69,6 @@ func main() {
 		todo := td.Todo{
 			Task:      task,
 			DateAdded: time.Now().Format("2006-01-02"),
-			DateDue:   "0001-01-01T00:00:00Z",
 			Completed: 0,
 			Priority:  0,
 		}
@@ -123,6 +124,7 @@ func main() {
 
 		if _, err = tdb.Delete(id); err != nil {
 			fmt.Println("Error deleting todo: ", err)
+			os.Exit(1)
 		}
 
 		fmt.Println("Todo deleted.")
@@ -145,6 +147,17 @@ func main() {
 
 		if err := tdb.SetPriority(id, tp); err != nil {
 			fmt.Println(err)
+			os.Exit(1)
+		}
+
+	case "due":
+		dueCmd.Parse(os.Args[2:])
+		id := parseValue(dueCmd.Arg(0))
+		date := dueCmd.Arg(1)
+
+		if err := tdb.SetDueDate(id, date); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
 		}
 
 	default:
@@ -156,13 +169,19 @@ func main() {
 }
 
 func formatOutput(todoList []td.Todo) {
-	fmt.Printf("ID\tDue\tPri\tTask\n")
+	fmt.Printf("ID\tDue\t\tPri\tTask\n")
 	for _, todo := range todoList {
 		var dateString string
-		if todo.DateDue == "0001-01-01T00:00:00Z" {
-			dateString = "-"
+		if todo.DateDue.String == "" {
+			dateString = "-         "
 		} else {
-			dateString = todo.DateDue
+			due, err := time.Parse("2006-01-02T00:00:00Z", todo.DateDue.String)
+			if err != nil {
+				fmt.Printf("Time parse error: %v\n", err)
+				os.Exit(1)
+			}
+
+			dateString = due.Format("01-02-2006")
 		}
 
 		fmt.Printf("%v\t%s\t%v\t%s\n", todo.Id, dateString, todo.Priority, todo.Task)
