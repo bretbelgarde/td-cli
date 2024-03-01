@@ -13,25 +13,19 @@ import (
 )
 
 func main() {
-
 	addCmd := flag.NewFlagSet("add", flag.ExitOnError)
-	//addSort := addCmd.String("sort", "id", "Sort list by <column name>")
 
 	listCmd := flag.NewFlagSet("list", flag.ExitOnError)
 	listSort := listCmd.String("sort", "id", "Sort list by <column name>")
-	//listComplete := listCmd.Bool("completed", false, "toggle display of Completed")
+	listComplete := listCmd.Bool("completed", false, "List completed todos")
 
 	updateCmd := flag.NewFlagSet("update", flag.ExitOnError)
-	// updateSort := updateCmd.String("sort", "id", "Sort list by <column name>")
 
 	delCmd := flag.NewFlagSet("delete", flag.ExitOnError)
-	// delSort := delCmd.String("sort", "id", "Sort list by <column name>")
 
 	completeCmd := flag.NewFlagSet("complete", flag.ExitOnError)
-	// completeSort := completeCmd.String("sort", "id", "Sort list by <column name>")
 
 	priorityCmd := flag.NewFlagSet("priority", flag.ExitOnError)
-	// prioritySort := priorityCmd.String("sort", "id", "Sort list by <column name>")
 
 	dueCmd := flag.NewFlagSet("due", flag.ExitOnError)
 
@@ -83,6 +77,8 @@ func main() {
 	case "list":
 		listCmd.Parse(os.Args[2:])
 		var sortBy string
+		var err error
+		var todoList []td.Todo
 
 		switch *listSort {
 		case "due":
@@ -93,7 +89,11 @@ func main() {
 			sortBy = td.SortDefault
 		}
 
-		todoList, err := tdb.List(0, sortBy)
+		if *listComplete {
+			todoList, err = tdb.ListCompleted(0)
+		} else {
+			todoList, err = tdb.List(0, sortBy)
+		}
 
 		if err != nil {
 			fmt.Println("ERR: ", err)
@@ -105,7 +105,11 @@ func main() {
 			os.Exit(0)
 		}
 
-		formatOutput(todoList)
+		if *listComplete {
+			formatCompleted(todoList)
+		} else {
+			formatOutput(todoList)
+		}
 
 	case "update":
 		updateCmd.Parse(os.Args[2:])
@@ -185,6 +189,19 @@ func formatOutput(todoList []td.Todo) {
 		}
 
 		fmt.Printf("%v\t%s\t%v\t%s\n", todo.Id, dateString, todo.Priority, todo.Task)
+	}
+}
+
+func formatCompleted(todoList []td.Todo) {
+	fmt.Printf("ID\tCompleted\tTask\n")
+	for _, todo := range todoList {
+		completed, err := time.Parse("2006-01-02T00:00:00Z", todo.DateCompleted.String)
+		if err != nil {
+			fmt.Printf("Time parse error: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("%v\t%s\t%s", todo.Id, completed.Format("01-02-2006"), todo.Task)
 	}
 }
 

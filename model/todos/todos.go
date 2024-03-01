@@ -98,7 +98,7 @@ func (td *Todos) Retrieve(id int) (Todo, error) {
 
 func (td *Todos) List(offset int, sortBy string) ([]Todo, error) {
 
-	rows, err := td.db.Query("SELECT * FROM todos WHERE ID > ? ORDER BY "+sortBy+" LIMIT 100", offset)
+	rows, err := td.db.Query("SELECT * FROM todos WHERE ID > ? AND completed <> 1 ORDER BY "+sortBy+" LIMIT 100;", offset)
 	if err != nil {
 		return nil, err
 	}
@@ -117,6 +117,36 @@ func (td *Todos) List(offset int, sortBy string) ([]Todo, error) {
 			&todo.DateCompleted,
 			&todo.Completed,
 			&todo.Priority); err != nil {
+			return nil, err
+		}
+
+		todos = append(todos, todo)
+	}
+
+	return todos, nil
+}
+
+func (td *Todos) ListCompleted(offset int) ([]Todo, error) {
+	rows, err := td.db.Query("SELECT * FROM todos WHERE completed = 1 ORDER BY date_completed DESC;")
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	todos := []Todo{}
+	for rows.Next() {
+		todo := Todo{}
+
+		if err = rows.Scan(
+			&todo.Id,
+			&todo.Task,
+			&todo.DateAdded,
+			&todo.DateDue,
+			&todo.DateCompleted,
+			&todo.Completed,
+			&todo.Priority,
+		); err != nil {
 			return nil, err
 		}
 
@@ -158,9 +188,11 @@ func (td *Todos) Delete(id int64) (int, error) {
 }
 
 func (td *Todos) Complete(id int64) error {
-	_, err := td.Update(id, "completed", "1")
+	if _, err := td.Update(id, "completed", "1"); err != nil {
+		return err
+	}
 
-	if err != nil {
+	if _, err := td.Update(id, "date_completed", time.Now().Format(time.DateOnly)); err != nil {
 		return err
 	}
 
