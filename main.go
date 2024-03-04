@@ -72,7 +72,9 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println("Todo added")
+		fmt.Printf("\nTodo added.\n\n")
+
+		formatOutput(getTodoList(*tdb))
 
 	case "list":
 		listCmd.Parse(os.Args[2:])
@@ -120,7 +122,9 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println("Todo updated.")
+		fmt.Printf("\nTodo updated.\n\n")
+
+		formatOutput(getTodoList(*tdb))
 
 	case "delete":
 		delCmd.Parse(os.Args[2:])
@@ -133,6 +137,8 @@ func main() {
 
 		fmt.Println("Todo deleted.")
 
+		formatOutput(getTodoList(*tdb))
+
 	case "complete":
 		completeCmd.Parse(os.Args[2:])
 		id := parseValue(completeCmd.Arg(0))
@@ -142,7 +148,15 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println("Todo completed.")
+		fmt.Printf("\nTodo completed.\n\n")
+
+		todoList, err := tdb.ListCompleted(0)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		formatCompleted(todoList)
 
 	case "priority":
 		priorityCmd.Parse(os.Args[2:])
@@ -154,6 +168,9 @@ func main() {
 			os.Exit(1)
 		}
 
+		fmt.Printf("\nTodo priority updated.\n\n")
+		formatOutput(getTodoList(*tdb))
+
 	case "due":
 		dueCmd.Parse(os.Args[2:])
 		id := parseValue(dueCmd.Arg(0))
@@ -164,12 +181,25 @@ func main() {
 			os.Exit(1)
 		}
 
+		fmt.Printf("\nTodo due date updated.\n\n")
+		formatOutput(getTodoList(*tdb))
+
 	default:
 		fmt.Println("expected one of the following 'add', 'list', 'delete', 'update', 'complete'")
 		os.Exit(1)
 	}
 
 	os.Exit(0)
+}
+
+func getTodoList(tdb td.Todos) []td.Todo {
+	todoList, err := tdb.List(0, td.SortDefault)
+	if err != nil {
+		fmt.Println("Err: ", err)
+		os.Exit(1)
+	}
+
+	return todoList
 }
 
 func formatOutput(todoList []td.Todo) {
