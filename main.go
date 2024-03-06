@@ -74,13 +74,11 @@ func main() {
 
 		fmt.Printf("\nTodo added.\n\n")
 
-		formatOutput(getTodoList(*tdb))
+		formatOutput(getTodoList(*tdb, td.SortDefault, false))
 
 	case "list":
 		listCmd.Parse(os.Args[2:])
 		var sortBy string
-		var err error
-		var todoList []td.Todo
 
 		switch *listSort {
 		case "due":
@@ -92,25 +90,9 @@ func main() {
 		}
 
 		if *listComplete {
-			todoList, err = tdb.ListCompleted(0)
+			formatCompleted(getTodoList(*tdb, sortBy, true))
 		} else {
-			todoList, err = tdb.List(0, sortBy)
-		}
-
-		if err != nil {
-			fmt.Println("ERR: ", err)
-			os.Exit(1)
-		}
-
-		if len(todoList) < 1 {
-			fmt.Println("No todos in todo list")
-			os.Exit(0)
-		}
-
-		if *listComplete {
-			formatCompleted(todoList)
-		} else {
-			formatOutput(todoList)
+			formatOutput(getTodoList(*tdb, sortBy, false))
 		}
 
 	case "update":
@@ -124,7 +106,7 @@ func main() {
 
 		fmt.Printf("\nTodo updated.\n\n")
 
-		formatOutput(getTodoList(*tdb))
+		formatOutput(getTodoList(*tdb, td.SortDefault, false))
 
 	case "delete":
 		delCmd.Parse(os.Args[2:])
@@ -137,7 +119,7 @@ func main() {
 
 		fmt.Println("Todo deleted.")
 
-		formatOutput(getTodoList(*tdb))
+		formatOutput(getTodoList(*tdb, td.SortDefault, false))
 
 	case "complete":
 		completeCmd.Parse(os.Args[2:])
@@ -150,13 +132,7 @@ func main() {
 
 		fmt.Printf("\nTodo completed.\n\n")
 
-		todoList, err := tdb.ListCompleted(0)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		formatCompleted(todoList)
+		formatCompleted(getTodoList(*tdb, td.SortDefault, true))
 
 	case "priority":
 		priorityCmd.Parse(os.Args[2:])
@@ -169,7 +145,7 @@ func main() {
 		}
 
 		fmt.Printf("\nTodo priority updated.\n\n")
-		formatOutput(getTodoList(*tdb))
+		formatOutput(getTodoList(*tdb, td.SortDefault, false))
 
 	case "due":
 		dueCmd.Parse(os.Args[2:])
@@ -182,7 +158,7 @@ func main() {
 		}
 
 		fmt.Printf("\nTodo due date updated.\n\n")
-		formatOutput(getTodoList(*tdb))
+		formatOutput(getTodoList(*tdb, td.SortDefault, false))
 
 	default:
 		fmt.Println("expected one of the following 'add', 'list', 'delete', 'update', 'complete'")
@@ -192,11 +168,24 @@ func main() {
 	os.Exit(0)
 }
 
-func getTodoList(tdb td.Todos) []td.Todo {
-	todoList, err := tdb.List(0, td.SortDefault)
+func getTodoList(tdb td.Todos, sortBy string, completed bool) []td.Todo {
+	var todoList []td.Todo
+	var err error
+
+	if !completed {
+		todoList, err = tdb.List(0, sortBy)
+	} else {
+		todoList, err = tdb.ListCompleted(0)
+	}
+
 	if err != nil {
 		fmt.Println("Err: ", err)
 		os.Exit(1)
+	}
+
+	if len(todoList) < 1 {
+		fmt.Println("No todos in todo list")
+		os.Exit(0)
 	}
 
 	return todoList
