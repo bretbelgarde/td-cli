@@ -145,7 +145,7 @@ func main() {
 		}
 
 		fmt.Printf("\nTodo priority updated.\n\n")
-		formatOutput(getTodoList(*tdb, td.SortDefault, false))
+		formatOutput(getTodoList(*tdb, td.SortPriority, false))
 
 	case "due":
 		dueCmd.Parse(os.Args[2:])
@@ -220,7 +220,7 @@ func formatCompleted(todoList []td.Todo) {
 			os.Exit(1)
 		}
 
-		fmt.Printf("%v\t%s\t%s", todo.Id, completed.Format("01-02-2006"), todo.Task)
+		fmt.Printf("%v\t%s\t%s\n", todo.Id, completed.Format("01-02-2006"), todo.Task)
 	}
 }
 
