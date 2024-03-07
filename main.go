@@ -1,15 +1,14 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	td "bretbelgarde.com/td-cli/model/todos"
+	"bretbelgarde.com/td-cli/utils"
 )
 
 func main() {
@@ -43,7 +42,7 @@ func main() {
 	appData := "todos.db"
 	appPath := appDir + "/" + appData
 
-	if !pathExists(appDir) {
+	if !utils.PathExists(appDir) {
 		if err = os.Mkdir(appDir, 0755); err != nil {
 			fmt.Println("Directiory creation error: ", err)
 			os.Exit(1)
@@ -74,7 +73,7 @@ func main() {
 
 		fmt.Printf("\nTodo added.\n\n")
 
-		formatOutput(getTodoList(*tdb, td.SortDefault, false))
+		utils.FormatOutput(utils.GetTodoList(*tdb, td.SortDefault, false))
 
 	case "list":
 		listCmd.Parse(os.Args[2:])
@@ -90,14 +89,14 @@ func main() {
 		}
 
 		if *listComplete {
-			formatCompleted(getTodoList(*tdb, sortBy, true))
+			utils.FormatCompleted(utils.GetTodoList(*tdb, sortBy, true))
 		} else {
-			formatOutput(getTodoList(*tdb, sortBy, false))
+			utils.FormatOutput(utils.GetTodoList(*tdb, sortBy, false))
 		}
 
 	case "update":
 		updateCmd.Parse(os.Args[2:])
-		id := parseValue(updateCmd.Arg(0))
+		id := utils.ParseValue(updateCmd.Arg(0))
 
 		if _, err = tdb.Update(id, "task", updateCmd.Arg(1)); err != nil {
 			fmt.Println("Error updating todo: ", err)
@@ -106,11 +105,11 @@ func main() {
 
 		fmt.Printf("\nTodo updated.\n\n")
 
-		formatOutput(getTodoList(*tdb, td.SortDefault, false))
+		utils.FormatOutput(utils.GetTodoList(*tdb, td.SortDefault, false))
 
 	case "delete":
 		delCmd.Parse(os.Args[2:])
-		id := parseValue(delCmd.Arg(0))
+		id := utils.ParseValue(delCmd.Arg(0))
 
 		if _, err = tdb.Delete(id); err != nil {
 			fmt.Println("Error deleting todo: ", err)
@@ -119,11 +118,11 @@ func main() {
 
 		fmt.Println("Todo deleted.")
 
-		formatOutput(getTodoList(*tdb, td.SortDefault, false))
+		utils.FormatOutput(utils.GetTodoList(*tdb, td.SortDefault, false))
 
 	case "complete":
 		completeCmd.Parse(os.Args[2:])
-		id := parseValue(completeCmd.Arg(0))
+		id := utils.ParseValue(completeCmd.Arg(0))
 
 		if err = tdb.Complete(id); err != nil {
 			fmt.Println(err)
@@ -132,12 +131,12 @@ func main() {
 
 		fmt.Printf("\nTodo completed.\n\n")
 
-		formatCompleted(getTodoList(*tdb, td.SortDefault, true))
+		utils.FormatOutput(utils.GetTodoList(*tdb, td.SortDefault, false))
 
 	case "priority":
 		priorityCmd.Parse(os.Args[2:])
-		id := parseValue(priorityCmd.Arg(0))
-		tp := parseValue(priorityCmd.Arg(1))
+		id := utils.ParseValue(updateCmd.Arg(0))
+		tp := utils.ParseValue(updateCmd.Arg(0))
 
 		if err := tdb.SetPriority(id, tp); err != nil {
 			fmt.Println(err)
@@ -145,11 +144,11 @@ func main() {
 		}
 
 		fmt.Printf("\nTodo priority updated.\n\n")
-		formatOutput(getTodoList(*tdb, td.SortPriority, false))
+		utils.FormatOutput(utils.GetTodoList(*tdb, td.SortDefault, false))
 
 	case "due":
 		dueCmd.Parse(os.Args[2:])
-		id := parseValue(dueCmd.Arg(0))
+		id := utils.ParseValue(updateCmd.Arg(0))
 		date := dueCmd.Arg(1)
 
 		if err := tdb.SetDueDate(id, date); err != nil {
@@ -158,7 +157,7 @@ func main() {
 		}
 
 		fmt.Printf("\nTodo due date updated.\n\n")
-		formatOutput(getTodoList(*tdb, td.SortDefault, false))
+		utils.FormatOutput(utils.GetTodoList(*tdb, td.SortDefault, false))
 
 	default:
 		fmt.Println("expected one of the following 'add', 'list', 'delete', 'update', 'complete'")
@@ -166,79 +165,4 @@ func main() {
 	}
 
 	os.Exit(0)
-}
-
-func getTodoList(tdb td.Todos, sortBy string, completed bool) []td.Todo {
-	var todoList []td.Todo
-	var err error
-
-	if !completed {
-		todoList, err = tdb.List(0, sortBy)
-	} else {
-		todoList, err = tdb.ListCompleted(0)
-	}
-
-	if err != nil {
-		fmt.Println("Err: ", err)
-		os.Exit(1)
-	}
-
-	if len(todoList) < 1 {
-		fmt.Println("No todos in todo list")
-		os.Exit(0)
-	}
-
-	return todoList
-}
-
-func formatOutput(todoList []td.Todo) {
-	fmt.Printf("ID\tDue\t\tPri\tTask\n")
-	for _, todo := range todoList {
-		var dateString string
-		if todo.DateDue.String == "" {
-			dateString = "-         "
-		} else {
-			due, err := time.Parse("2006-01-02T00:00:00Z", todo.DateDue.String)
-			if err != nil {
-				fmt.Printf("Time parse error: %v\n", err)
-				os.Exit(1)
-			}
-
-			dateString = due.Format("01-02-2006")
-		}
-
-		fmt.Printf("%v\t%s\t%v\t%s\n", todo.Id, dateString, todo.Priority, todo.Task)
-	}
-}
-
-func formatCompleted(todoList []td.Todo) {
-	fmt.Printf("ID\tCompleted\tTask\n")
-	for _, todo := range todoList {
-		completed, err := time.Parse("2006-01-02T00:00:00Z", todo.DateCompleted.String)
-		if err != nil {
-			fmt.Printf("Time parse error: %v\n", err)
-			os.Exit(1)
-		}
-
-		fmt.Printf("%v\t%s\t%s\n", todo.Id, completed.Format("01-02-2006"), todo.Task)
-	}
-}
-
-func parseValue(val string) int64 {
-	conv, err := strconv.Atoi(val)
-
-	if err != nil {
-		fmt.Printf("Index parse error: %v\n", err)
-		os.Exit(1)
-	}
-
-	return int64(conv)
-}
-
-func pathExists(path string) bool {
-	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		return false
-	}
-
-	return true
 }
