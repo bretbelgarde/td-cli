@@ -135,8 +135,8 @@ func main() {
 
 	case "priority":
 		priorityCmd.Parse(os.Args[2:])
-		id := utils.ParseValue(updateCmd.Arg(0))
-		tp := utils.ParseValue(updateCmd.Arg(0))
+		id := utils.ParseValue(priorityCmd.Arg(0))
+		tp := utils.ParseValue(priorityCmd.Arg(1))
 
 		if err := tdb.SetPriority(id, tp); err != nil {
 			fmt.Println(err)
