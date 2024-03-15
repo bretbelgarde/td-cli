@@ -19,6 +19,13 @@ const create string = `
 	priority  INTEGER NOT NULL DEFAULT 0
 	);`
 
+const (
+	SortDefault       = "id ASC"
+	SortDueDate       = "date_due DESC"
+	SortDateCompleted = "date_completed DESC"
+	SortPriority      = "priority DESC"
+)
+
 type Todo struct {
 	Id            int
 	Task          string
@@ -28,13 +35,6 @@ type Todo struct {
 	Completed     int
 	Priority      int
 }
-
-const (
-	SortDefault       = "id ASC"
-	SortDueDate       = "date_due DESC"
-	SortDateCompleted = "date_completed DESC"
-	SortPriority      = "priority DESC"
-)
 
 type Todos struct {
 	db *sql.DB
